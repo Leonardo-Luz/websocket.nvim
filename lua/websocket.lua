@@ -6,6 +6,8 @@ M.setup = function(opts)
   if agree then
     require 'websocket.server'
     require 'websocket.client'
+  else
+    vim.print("DO NOT USE WEBSOCKET.NVIM YET")
   end
 end
 

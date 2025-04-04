@@ -6,9 +6,14 @@ local ensure_job = function()
     return job
   end
 
+  -- Get the current script's full path
+  local info = debug.getinfo(1, 'S') -- 'S' gives us the source
+
+  local script_path = info.source:sub(2, 73 - #("/lua/websocket/")) .. "/go/websocket.nvim"
+
   -- Start the Go WebSocket server process
   print("Starting Go WebSocket server...") -- Log when the job is being started
-  job = vim.fn.jobstart({ 'go/websocket.nvim' }, { rpc = true })
+  job = vim.fn.jobstart({ script_path }, { rpc = true })
   return job
 end
 
@@ -19,13 +24,13 @@ local run_goolang_func = function(func_name, ...)
   end
 end
 
-M.start_ws_server = function()
+M.start_ws_server = function(port)
   print("Running start_ws_server...") -- Log when this function is invoked
-  run_goolang_func('newWsServer', "localhost", "8080")
+  run_goolang_func('startWsServer', vim.api.nvim_buf_get_lines(vim.api.nvim_get_current_buf(), 0, -1, false), port)
 end
 
-vim.api.nvim_create_user_command('StartWsServer', function()
-  M.start_ws_server()
-end, {})
+vim.api.nvim_create_user_command('StartWsServer', function(args)
+  M.start_ws_server(args.args)
+end, { nargs = 1 })
 
 return M

@@ -1,9 +1,13 @@
-require 'websocket.server'
-require 'websocket.client'
-
 local M = {}
 
-M.setup = function() end
+M.setup = function(opts)
+  local agree = opts.agree
+
+  if agree then
+    require 'websocket.server'
+    require 'websocket.client'
+  end
+end
 
 return M
 

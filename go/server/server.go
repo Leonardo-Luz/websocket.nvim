@@ -1,21 +1,15 @@
 package server
 
 import (
-	"fmt"
-	"log"
+	"crypto/rand"
+	"encoding/base64"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
 )
 
-// Clients connected to the server
-var clients = make(map[*websocket.Conn]bool)
-
-// Messages broadcasted
-var broadcast = make(chan []byte, 100) // Buffered channel
-
-// Protect clients map
 var mutex = &sync.Mutex{}
 
 // Upgrades connection from http to ws
@@ -28,162 +22,103 @@ var upgrader = websocket.Upgrader{
 }
 
 type Server struct {
-	host         string
-	port         string
-	addr         string // host:port
-	OnMessage    func(client_addr string, client_message []byte)
-	OnConnect    func(client_addr string)
-	OnDisconnect func(client_addr string)
-	OnOpen       func(addr string)
-	OnClose      func()
-	OnError      func(errorMsg string)
+	port      string
+	clients   map[*websocket.Conn]bool
+	broadcast chan []byte
+	lines     []string
+	adminCode string
 }
 
-func (server *Server) GetAddr() string {
-	return server.addr
-}
-func (server *Server) SetOnMessage(onMessage func(client_addr string, client_message []byte)) {
-	server.OnMessage = onMessage
-}
-func (server *Server) SetOnConnect(onConnect func(client_addr string)) {
-	server.OnConnect = onConnect
-}
-func (server *Server) SetOnDisconnect(onDisconnect func(client_addr string)) {
-	server.OnDisconnect = onDisconnect
-}
-func (server *Server) SetOnOpen(onOpen func(addr string)) {
-	server.OnOpen = onOpen
-}
-func (server *Server) SetOnClose(onClose func()) {
-	server.OnClose = onClose
-}
-func (server *Server) SetOnError(onError func(errorMsg string)) {
-	server.OnError = onError
-}
-
-// Wait for a client to send a message
-func (server *Server) ServerListener(conn *websocket.Conn) {
-	defer func() {
-		mutex.Lock()
-		delete(clients, conn)
-		mutex.Unlock()
-		conn.Close()
-	}()
-
-	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			server.OnError(fmt.Sprintf("Error reading message: %v", err))
-			break
-		}
-
-		server.OnMessage(conn.LocalAddr().String(), message)
-		broadcast <- message
+// Creates a new instance of Server
+func NewServer(port string, lines []string, adminCode string) *Server {
+	return &Server{
+		port:      port,
+		clients:   make(map[*websocket.Conn]bool),
+		broadcast: make(chan []byte, 100),
+		lines:     lines,
+		adminCode: adminCode,
 	}
 }
 
-// Upgrades the connection and starts listening
+const ROLE_CODE = "EWFSDNASKDJNQQWEO"
+const JOIN_CODE = "Ef232wefeEFAwdEFF"
+
+func (s *Server) readLoop(ws *websocket.Conn) {
+	for {
+		//on message
+		_, msg, err := ws.ReadMessage()
+		if err != nil {
+			// fmt.Println("read error: ", err)
+			continue
+		}
+
+		if string(msg) == (ROLE_CODE + "role") {
+			ws.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"user:"+strings.Join(s.lines, JOIN_CODE)))
+
+			// if len(s.clients) == 1 {
+			// 	ws.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"admin:"+s.adminCode))
+			// } else {
+			// 	ws.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"user:"+strings.Join(s.lines, JOIN_CODE)))
+			// }
+		} else {
+			s.broadcast <- msg
+		}
+	}
+}
+
+func (s *Server) MessageHandler() {
+	for {
+		message := <-s.broadcast
+
+		mutex.Lock()
+		for client := range s.clients {
+			client.WriteMessage(websocket.TextMessage, message)
+		}
+		mutex.Unlock()
+	}
+}
+
 func (server *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		server.OnError("Error upgrading to WebSocket")
+		// fmt.Println("Error upgrading to WebSocket")
 		return
 	}
 	defer conn.Close()
 
-	mutex.Lock()
-	clients[conn] = true
-	mutex.Unlock()
+	server.clients[conn] = true
 
-	go server.ServerListener(conn)
+	server.readLoop(conn)
 }
 
-// Sends received messages to all connected clients
-func (server *Server) MessageHandler() {
-	for {
-		message := <-broadcast
-
-		mutex.Lock()
-		for client := range clients {
-			server.SendMessage(client, message)
-		}
-		mutex.Unlock()
-	}
-}
-
-// Send message to connected client
-func (server *Server) SendMessage(client *websocket.Conn, message []byte) {
-	err := client.WriteMessage(websocket.TextMessage, message)
+func generateAdminCode(length int) (string, error) {
+	bytes := make([]byte, length)
+	_, err := rand.Read(bytes)
 	if err != nil {
-		log.Printf("Error sending message to client %s: %v", client.LocalAddr().String(), err)
-		client.Close()
-		mutex.Lock()
-		delete(clients, client)
-		mutex.Unlock()
-		server.OnDisconnect(client.LocalAddr().String())
+		return "", err
 	}
+	return base64.URLEncoding.EncodeToString(bytes), nil // Use URL-safe encoding
 }
 
 // Starts the WebSocket Server
-func (server *Server) StartServer() {
-	log.Println("Starting the WebSocket server...") // Log when server starts
-	server.OnOpen(server.GetAddr())
-
-	http.HandleFunc("/ws", server.WebsocketHandler)
-
-	go server.MessageHandler() // Ensure this is in a goroutine to not block
-
-	err := http.ListenAndServe(":"+server.port, nil)
+func StartServer(lines []string, port string) {
+	admin_code, err := generateAdminCode(32)
 	if err != nil {
-		server.OnError(fmt.Sprintf("Error starting server: %v", err))
+		return
 	}
-}
 
-// Creates a new instance of Server
-func NewServer(host string, port string,
-	OnMessage func(client_addr string, client_message []byte),
-	OnConnect func(client_addr string),
-	OnDisconnect func(client_addr string),
-	OnOpen func(addr string),
-	OnClose func(),
-	OnError func(errorMsg string),
-) *Server {
-	return &Server{
-		host:         host,
-		port:         port,
-		addr:         fmt.Sprintf("%s:%s", host, port),
-		OnMessage:    OnMessage,
-		OnConnect:    OnConnect,
-		OnDisconnect: OnDisconnect,
-		OnOpen:       OnOpen,
-		OnClose:      OnClose,
-		OnError:      OnError,
-	}
-}
+	server := NewServer(port, lines, admin_code)
 
-// Creates a new instance of Server with default methods
-func NewBasicServer(host string, port string) *Server {
-	return &Server{
-		host: host,
-		port: port,
-		addr: fmt.Sprintf("%s:%s", host, port),
-		OnMessage: func(client_addr string, client_message []byte) {
-			log.Printf("received message: %s from %s", client_message, client_addr)
-		},
-		OnConnect: func(client_addr string) {
-			log.Printf("Client %s connected to the server", client_addr)
-		},
-		OnDisconnect: func(client_addr string) {
-			log.Printf("Client disconnected: %s", client_addr)
-		},
-		OnOpen: func(addr string) {
-			log.Printf("Listening at %s", addr)
-		},
-		OnClose: func() {
-			log.Printf("Server Closed")
-		},
-		OnError: func(errorMsg string) {
-			log.Printf(errorMsg)
-		},
-	}
+	// fmt.Println("Starting the WebSocket server... port: " + server.port)
+
+	go func() {
+		http.HandleFunc("/ws", server.WebsocketHandler)
+
+		go server.MessageHandler()
+
+		err := http.ListenAndServe(":"+server.port, nil)
+		if err != nil {
+			// fmt.Sprintf("Error starting server: %v", err)
+		}
+	}()
 }

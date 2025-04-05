@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -27,6 +28,7 @@ type Server struct {
 	broadcast chan []byte
 	lines     []string
 	adminCode string
+	adminConn *websocket.Conn
 }
 
 // Creates a new instance of Server
@@ -37,32 +39,54 @@ func NewServer(port string, lines []string, adminCode string) *Server {
 		broadcast: make(chan []byte, 100),
 		lines:     lines,
 		adminCode: adminCode,
+		adminConn: nil,
 	}
 }
 
 const ROLE_CODE = "EWFSDNASKDJNQQWEO"
 const JOIN_CODE = "Ef232wefeEFAwdEFF"
+const UPDATE_CODE = "FSADnkj34sd1QQW3O"
+const GET_LINES_CODE = "wfeFJEWO23ASD12oi"
 
-func (s *Server) readLoop(ws *websocket.Conn) {
+func (s *Server) readLoop(conn *websocket.Conn) {
 	for {
 		//on message
-		_, msg, err := ws.ReadMessage()
+		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			// fmt.Println("read error: ", err)
 			continue
 		}
 
-		if string(msg) == (ROLE_CODE + "role") {
-			ws.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"user:"+strings.Join(s.lines, JOIN_CODE)))
+		s.OnMessage(msg, conn)
+	}
+}
 
-			// if len(s.clients) == 1 {
-			// 	ws.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"admin:"+s.adminCode))
-			// } else {
-			// 	ws.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"user:"+strings.Join(s.lines, JOIN_CODE)))
-			// }
+func (s *Server) OnMessage(msg []byte, conn *websocket.Conn) {
+	re := regexp.MustCompile(`^wfeFJEWO23ASD12oilines\[(.*)\]`)
+	matches := re.FindStringSubmatch(string(msg))
+
+	if len(matches) > 0 {
+		linesStr := matches[1]
+		lines := strings.Split(linesStr, ",")
+
+		s.lines = lines
+	}
+
+	if string(msg) == (ROLE_CODE + "role") {
+		conn.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"user:"+strings.Join(s.lines, JOIN_CODE)))
+
+		if len(s.clients) == 1 {
+			s.adminConn = conn
+			conn.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"admin:"+s.adminCode))
 		} else {
-			s.broadcast <- msg
+			s.adminConn.WriteMessage(websocket.TextMessage, []byte(UPDATE_CODE))
+
+			// time.Sleep(100 * time.Millisecond)
+
+			conn.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"user:"+strings.Join(s.lines, JOIN_CODE)))
 		}
+	} else {
+		s.broadcast <- msg
 	}
 }
 
@@ -72,13 +96,17 @@ func (s *Server) MessageHandler() {
 
 		mutex.Lock()
 		for client := range s.clients {
-			client.WriteMessage(websocket.TextMessage, message)
+			s.onBroadcast(message, client)
 		}
 		mutex.Unlock()
 	}
 }
 
-func (server *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) onBroadcast(message []byte, conn *websocket.Conn) {
+	conn.WriteMessage(websocket.TextMessage, message)
+}
+
+func (s *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		// fmt.Println("Error upgrading to WebSocket")
@@ -86,10 +114,14 @@ func (server *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	server.clients[conn] = true
+	s.clients[conn] = true
 
-	server.readLoop(conn)
+	// onConnection()
+
+	s.readLoop(conn)
 }
+
+// func (s *Server) onConnection(){}
 
 func generateAdminCode(length int) (string, error) {
 	bytes := make([]byte, length)

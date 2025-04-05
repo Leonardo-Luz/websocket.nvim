@@ -21,57 +21,86 @@ func receiveLines(client *nvim.Nvim, bufnum int, conn *websocket.Conn) {
 			os.Exit(1)
 		}
 
-		// Check if the message matches the pattern containing role, user, and lines
-		re := regexp.MustCompile(`^EWFSDNASKDJNQQWEOuser:(.*)`)
-		matches := re.FindStringSubmatch(string(response))
+		handleNewUserConn(response, client, bufnum)
 
-		if len(matches) > 0 {
-			// Extract all lines for the user
-			userLines := matches[1]
+		handleNewLine(response, client, bufnum)
 
-			// Split the userLines string into individual lines
-			arrayUserlines := strings.Split(userLines, "Ef232wefeEFAwdEFF")
+		handleUpdateLines(response, client, bufnum, conn)
+	}
+}
 
-			var lines [][]byte
+func handleNewUserConn(response []byte, client *nvim.Nvim, bufnum int) {
+	// Check if the message matches the pattern containing role, user, and lines
+	re := regexp.MustCompile(`^EWFSDNASKDJNQQWEOuser:(.*)`)
+	matches := re.FindStringSubmatch(string(response))
 
-			// Convert each line into []byte and append to the lines array
-			for _, userLine := range arrayUserlines {
-				lines = append(lines, []byte(userLine))
-			}
+	if len(matches) > 0 {
+		// Extract all lines for the user
+		userLines := matches[1]
 
-			// Update the entire buffer with the user's lines
-			if err := client.SetBufferLines(nvim.Buffer(bufnum), 0, -1, false, lines); err != nil {
-				log.Fatal(err)
-			}
+		// Split the userLines string into individual lines
+		arrayUserlines := strings.Split(userLines, "Ef232wefeEFAwdEFF")
+
+		var lines [][]byte
+
+		// Convert each line into []byte and append to the lines array
+		for _, userLine := range arrayUserlines {
+			lines = append(lines, []byte(userLine))
 		}
 
-		// If the message doesn't contain the role/user pattern, check for line modifications
-		re2 := regexp.MustCompile(`^start=(\w+)end=(\w+)lines\[(.*)\]`)
-		matches2 := re2.FindStringSubmatch(string(response))
-
-		if len(matches2) > 0 {
-			startnumStr := matches2[1]
-			endnumStr := matches2[2]
-			lines := matches2[3]
-
-			// Convert start and end numbers to integers
-			startnum, err := strconv.Atoi(startnumStr)
-			if err != nil {
-				log.Fatalf("Error converting start number: %v", err)
-				return
-			}
-
-			endnum, err := strconv.Atoi(endnumStr)
-			if err != nil {
-				log.Fatalf("Error converting end number: %v", err)
-				return
-			}
-
-			// Update only the specified line(s)
-			if err := client.SetBufferLines(nvim.Buffer(bufnum), startnum-1, endnum, false, [][]byte{[]byte(lines)}); err != nil {
-				log.Fatal(err)
-			}
+		// Update the entire buffer with the user's lines
+		if err := client.SetBufferLines(nvim.Buffer(bufnum), 0, -1, false, lines); err != nil {
+			log.Fatal(err)
 		}
+	}
+}
+
+func handleNewLine(response []byte, client *nvim.Nvim, bufnum int) {
+	// If the message doesn't contain the role/user pattern, check for line modifications
+	re := regexp.MustCompile(`^start=(\w+)end=(\w+)lines\[(.*)\]`)
+	matches := re.FindStringSubmatch(string(response))
+
+	if len(matches) > 0 {
+		startnumStr := matches[1]
+		endnumStr := matches[2]
+		lines := matches[3]
+
+		// Convert start and end numbers to integers
+		startnum, err := strconv.Atoi(startnumStr)
+		if err != nil {
+			log.Fatalf("Error converting start number: %v", err)
+			return
+		}
+
+		endnum, err := strconv.Atoi(endnumStr)
+		if err != nil {
+			log.Fatalf("Error converting end number: %v", err)
+			return
+		}
+
+		// Update only the specified line(s)
+		if err := client.SetBufferLines(nvim.Buffer(bufnum), startnum-1, endnum, false, [][]byte{[]byte(lines)}); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func handleUpdateLines(response []byte, client *nvim.Nvim, bufnum int, conn *websocket.Conn) {
+	if string(response) == "FSADnkj34sd1QQW3O" {
+		linesByte, err := client.BufferLines(nvim.Buffer(bufnum), 0, -1, false)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var lines []string
+
+		for lineid := range linesByte {
+			lines = append(lines, string(linesByte[lineid]))
+		}
+
+		message := fmt.Sprintf("wfeFJEWO23ASD12oilines[%s]", strings.Join(lines, ","))
+
+		err = conn.WriteMessage(websocket.TextMessage, []byte(message))
 	}
 }
 

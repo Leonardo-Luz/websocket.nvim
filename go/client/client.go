@@ -89,7 +89,7 @@ func handleNewLine(response []byte, client *nvim.Nvim, bufnum int) {
 		}
 
 		// Update only the specified line(s)
-		if err := client.SetBufferLines(nvim.Buffer(bufnum), startnum-1, endnum, false, linesBye); err != nil {
+		if err := client.SetBufferLines(nvim.Buffer(bufnum), startnum, endnum, false, linesBye); err != nil {
 			log.Fatal(err)
 		}
 	}

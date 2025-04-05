@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"log"
@@ -61,22 +60,22 @@ func handleNewLine(response []byte, client *nvim.Nvim, bufnum int) {
 	matches := re.FindStringSubmatch(string(response))
 
 	if len(matches) > 0 {
-		startnumStr := matches[1]
-		endnumStr := matches[2]
+		// startnumStr := matches[1]
+		// endnumStr := matches[2]
 		lines := matches[3]
 
 		// Convert start and end numbers to integers
-		startnum, err := strconv.Atoi(startnumStr)
-		if err != nil {
-			log.Fatalf("Error converting start number: %v", err)
-			return
-		}
-
-		endnum, err := strconv.Atoi(endnumStr)
-		if err != nil {
-			log.Fatalf("Error converting end number: %v", err)
-			return
-		}
+		// startnum, err := strconv.Atoi(startnumStr)
+		// if err != nil {
+		// 	log.Fatalf("Error converting start number: %v", err)
+		// 	return
+		// }
+		//
+		// endnum, err := strconv.Atoi(endnumStr)
+		// if err != nil {
+		// 	log.Fatalf("Error converting end number: %v", err)
+		// 	return
+		// }
 
 		// Split the userLines string into individual lines
 		arrayUserlines := strings.Split(lines, "Ef232wefeEFAwdEFF")
@@ -89,7 +88,7 @@ func handleNewLine(response []byte, client *nvim.Nvim, bufnum int) {
 		}
 
 		// Update only the specified line(s)
-		if err := client.SetBufferLines(nvim.Buffer(bufnum), startnum, endnum, false, linesBye); err != nil {
+		if err := client.SetBufferLines(nvim.Buffer(bufnum), 0, -1, false, linesBye); err != nil {
 			log.Fatal(err)
 		}
 	}

@@ -56,39 +56,24 @@ func handleNewUserConn(response []byte, client *nvim.Nvim, bufnum int) {
 
 func handleNewLine(response []byte, client *nvim.Nvim, bufnum int) {
 	// If the message doesn't contain the role/user pattern, check for line modifications
-	re := regexp.MustCompile(`^start=(\w+)end=(\w+)lines\[(.*)\]`)
+	re := regexp.MustCompile(`^lines\[(.*)\]`)
 	matches := re.FindStringSubmatch(string(response))
 
 	if len(matches) > 0 {
-		// startnumStr := matches[1]
-		// endnumStr := matches[2]
-		lines := matches[3]
-
-		// Convert start and end numbers to integers
-		// startnum, err := strconv.Atoi(startnumStr)
-		// if err != nil {
-		// 	log.Fatalf("Error converting start number: %v", err)
-		// 	return
-		// }
-		//
-		// endnum, err := strconv.Atoi(endnumStr)
-		// if err != nil {
-		// 	log.Fatalf("Error converting end number: %v", err)
-		// 	return
-		// }
+		linesStr := matches[1]
 
 		// Split the userLines string into individual lines
-		arrayUserlines := strings.Split(lines, "Ef232wefeEFAwdEFF")
+		arrayUserlines := strings.Split(linesStr, "Ef232wefeEFAwdEFF")
 
-		var linesBye [][]byte
+		var lines [][]byte
 
 		// Convert each line into []byte and append to the lines array
 		for _, userLine := range arrayUserlines {
-			linesBye = append(linesBye, []byte(userLine))
+			lines = append(lines, []byte(userLine))
 		}
 
-		// Update only the specified line(s)
-		if err := client.SetBufferLines(nvim.Buffer(bufnum), 0, -1, false, linesBye); err != nil {
+		// Update the entire buffer with the user's lines
+		if err := client.SetBufferLines(nvim.Buffer(bufnum), 0, -1, false, lines); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -120,7 +105,7 @@ func WriteLines(start int, end int, line string, url string) {
 		os.Exit(1)
 	}
 
-	message := fmt.Sprintf("start=%dend=%dlines[%s]", start, end, line)
+	message := fmt.Sprintf("lines[%s]", line)
 
 	err = conn.WriteMessage(websocket.TextMessage, []byte(message))
 	if err != nil {

@@ -71,8 +71,6 @@ func (s *Server) OnMessage(msg []byte, conn *websocket.Conn) {
 		lines := strings.Split(linesStr, "Ef232wefeEFAwdEFF")
 
 		s.lines = lines
-
-		msg = []byte("start=0end=-1lines[" + linesStr + "]")
 	}
 
 	if string(msg) == (ROLE_CODE + "role") {

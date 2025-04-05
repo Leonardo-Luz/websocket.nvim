@@ -67,14 +67,12 @@ func (s *Server) OnMessage(msg []byte, conn *websocket.Conn) {
 
 	if len(matches) > 0 {
 		linesStr := matches[1]
-		lines := strings.Split(linesStr, ",")
+		lines := strings.Split(linesStr, "Ef232wefeEFAwdEFF")
 
 		s.lines = lines
 	}
 
 	if string(msg) == (ROLE_CODE + "role") {
-		conn.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"user:"+strings.Join(s.lines, JOIN_CODE)))
-
 		if len(s.clients) == 1 {
 			s.adminConn = conn
 			conn.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"admin:"+s.adminCode))

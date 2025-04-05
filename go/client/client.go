@@ -98,7 +98,7 @@ func handleUpdateLines(response []byte, client *nvim.Nvim, bufnum int, conn *web
 			lines = append(lines, string(linesByte[lineid]))
 		}
 
-		message := fmt.Sprintf("wfeFJEWO23ASD12oilines[%s]", strings.Join(lines, ","))
+		message := fmt.Sprintf("wfeFJEWO23ASD12oilines[%s]", strings.Join(lines, "Ef232wefeEFAwdEFF"))
 
 		err = conn.WriteMessage(websocket.TextMessage, []byte(message))
 	}

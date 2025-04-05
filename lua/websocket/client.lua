@@ -6,7 +6,7 @@ local ensure_job = function()
     return job
   end
 
-  local script_path = vim.fn.stdpath 'data' .. "../../go/websocket.nvim"
+  local script_path = vim.fn.stdpath 'data' .. "/lazy/websocket.nvim/go/websocket.nvim"
 
   job = vim.fn.jobstart({ script_path }, { rpc = true })
   return job

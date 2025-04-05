@@ -6,7 +6,7 @@ local ensure_job = function()
     return job
   end
 
-  local script_path = vim.fn.stdpath 'data' .. "../../go/websocket.nvim"
+  local script_path = vim.fn.stdpath 'data' .. "/lazy/websocket.nvim/go/websocket.nvim"
 
   -- Start the Go WebSocket server process
   print("Starting Go WebSocket server...") -- Log when the job is being started

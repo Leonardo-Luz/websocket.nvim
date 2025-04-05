@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -81,7 +82,7 @@ func (s *Server) OnMessage(msg []byte, conn *websocket.Conn) {
 		} else {
 			s.adminConn.WriteMessage(websocket.TextMessage, []byte(UPDATE_CODE))
 
-			// time.Sleep(100 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 
 			conn.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"user:"+strings.Join(s.lines, JOIN_CODE)))
 		}

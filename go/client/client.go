@@ -78,8 +78,18 @@ func handleNewLine(response []byte, client *nvim.Nvim, bufnum int) {
 			return
 		}
 
+		// Split the userLines string into individual lines
+		arrayUserlines := strings.Split(lines, "Ef232wefeEFAwdEFF")
+
+		var linesBye [][]byte
+
+		// Convert each line into []byte and append to the lines array
+		for _, userLine := range arrayUserlines {
+			linesBye = append(linesBye, []byte(userLine))
+		}
+
 		// Update only the specified line(s)
-		if err := client.SetBufferLines(nvim.Buffer(bufnum), startnum-1, endnum, false, [][]byte{[]byte(lines)}); err != nil {
+		if err := client.SetBufferLines(nvim.Buffer(bufnum), startnum-1, endnum, false, linesBye); err != nil {
 			log.Fatal(err)
 		}
 	}

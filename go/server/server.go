@@ -76,14 +76,13 @@ func (s *Server) OnMessage(msg []byte, conn *websocket.Conn) {
 	if string(msg) == (ROLE_CODE + "role") {
 		if len(s.clients) == 1 {
 			s.adminConn = conn
-			conn.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"admin:"+s.adminCode))
-		} else {
-			s.adminConn.WriteMessage(websocket.TextMessage, []byte(UPDATE_CODE))
-
-			time.Sleep(200 * time.Millisecond)
-
-			conn.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"user:"+strings.Join(s.lines, JOIN_CODE)))
 		}
+
+		s.adminConn.WriteMessage(websocket.TextMessage, []byte(UPDATE_CODE))
+
+		time.Sleep(200 * time.Millisecond)
+
+		conn.WriteMessage(websocket.TextMessage, []byte(ROLE_CODE+"user:"+strings.Join(s.lines, JOIN_CODE)))
 	} else {
 		s.broadcast <- msg
 	}

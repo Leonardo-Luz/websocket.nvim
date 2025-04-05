@@ -26,7 +26,9 @@ M.start_ws_server = function(port)
 
   print("Running start_ws_server...") -- Log when this function is invoked
   run_goolang_func('startWsServer', vim.api.nvim_buf_get_lines(bufnum, 0, -1, false), port)
-  run_goolang_func('startWsClient', bufnum, "ws://localhost:" .. port .. "/ws")
+  vim.defer_fn(function()
+    run_goolang_func('startWsClient', bufnum, "ws://localhost:" .. port .. "/ws")
+  end, 100)
 end
 
 vim.api.nvim_create_user_command('StartWsServer', function(args)

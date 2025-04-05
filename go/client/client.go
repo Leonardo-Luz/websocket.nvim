@@ -24,7 +24,7 @@ func receiveLines(client *nvim.Nvim, bufnum int, conn *websocket.Conn) {
 
 		handleNewLine(response, client, bufnum)
 
-		handleUpdateLines(response, client, bufnum, conn)
+		handleUpdateLines(response, client, bufnum)
 	}
 }
 
@@ -47,6 +47,7 @@ func handleNewUserConn(response []byte, client *nvim.Nvim, bufnum int) {
 			lines = append(lines, []byte(userLine))
 		}
 
+		client.SetBufferVar(nvim.Buffer(bufnum), "is_ws_update", true)
 		// Update the entire buffer with the user's lines
 		if err := client.SetBufferLines(nvim.Buffer(bufnum), 0, -1, false, lines); err != nil {
 			log.Fatal(err)
@@ -72,6 +73,7 @@ func handleNewLine(response []byte, client *nvim.Nvim, bufnum int) {
 			lines = append(lines, []byte(userLine))
 		}
 
+		client.SetBufferVar(nvim.Buffer(bufnum), "is_ws_update", true)
 		// Update the entire buffer with the user's lines
 		if err := client.SetBufferLines(nvim.Buffer(bufnum), 0, -1, false, lines); err != nil {
 			log.Fatal(err)
@@ -79,7 +81,7 @@ func handleNewLine(response []byte, client *nvim.Nvim, bufnum int) {
 	}
 }
 
-func handleUpdateLines(response []byte, client *nvim.Nvim, bufnum int, conn *websocket.Conn) {
+func handleUpdateLines(response []byte, client *nvim.Nvim, bufnum int) {
 	if string(response) == "FSADnkj34sd1QQW3O" {
 		linesByte, err := client.BufferLines(nvim.Buffer(bufnum), 0, -1, false)
 		if err != nil {
@@ -91,10 +93,6 @@ func handleUpdateLines(response []byte, client *nvim.Nvim, bufnum int, conn *web
 		for lineid := range linesByte {
 			lines = append(lines, string(linesByte[lineid]))
 		}
-
-		message := fmt.Sprintf("wfeFJEWO23ASD12oilines[%s]", strings.Join(lines, "Ef232wefeEFAwdEFF"))
-
-		err = conn.WriteMessage(websocket.TextMessage, []byte(message))
 	}
 }
 

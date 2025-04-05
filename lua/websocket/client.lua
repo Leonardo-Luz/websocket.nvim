@@ -25,11 +25,21 @@ M.start_ws_client = function(url)
 end
 
 vim.api.nvim_create_user_command('StartWsClient', function(args)
+  local set_var = vim.api.nvim_buf_set_var
+  local get_var = vim.api.nvim_buf_get_var
+  local buf = vim.api.nvim_get_current_buf()
+  set_var(buf, "is_ws_update", false)
+
   M.start_ws_client(args.args)
 
-  vim.api.nvim_create_autocmd("InsertLeave", {
+  vim.api.nvim_create_autocmd("TextChangedI", {
     callback = function()
-      local lines = vim.api.nvim_buf_get_lines(vim.api.nvim_get_current_buf(), 0, -1, false);
+      if get_var(buf, "is_ws_update") then
+        set_var(buf, "is_ws_update", false)
+        return
+      end
+
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false);
       local line = table.concat(lines, "Ef232wefeEFAwdEFF")
 
       run_goolang_func('writeWsClient', 0, -1, line, current_url)

@@ -6,10 +6,7 @@ local ensure_job = function()
     return job
   end
 
-  -- Get the current script's full path
-  local info = debug.getinfo(1, 'S') -- 'S' gives us the source
-
-  local script_path = info.source:sub(2, 73 - #("/lua/websocket/")) .. "/go/websocket.nvim"
+  local script_path = vim.fn.stdpath 'data' .. "../../go/websocket.nvim"
 
   job = vim.fn.jobstart({ script_path }, { rpc = true })
   return job

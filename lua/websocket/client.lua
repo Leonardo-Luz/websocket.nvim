@@ -32,7 +32,7 @@ vim.api.nvim_create_user_command('StartWsClient', function(args)
 
   M.start_ws_client(args.args)
 
-  vim.api.nvim_create_autocmd("TextChangedI", {
+  vim.api.nvim_create_autocmd({ "TextChangedI", "TextChanged" }, {
     callback = function()
       if get_var(buf, "is_ws_update") then
         set_var(buf, "is_ws_update", false)

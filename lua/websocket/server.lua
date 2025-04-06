@@ -34,7 +34,7 @@ M.start_ws_server = function(port)
     local buf = vim.api.nvim_get_current_buf()
     set_var(buf, "is_ws_update", false)
 
-    vim.api.nvim_create_autocmd("TextChangedI", {
+    vim.api.nvim_create_autocmd({ "TextChangedI", "TextChanged" }, {
       callback = function()
         if get_var(buf, "is_ws_update") then
           set_var(buf, "is_ws_update", false)
